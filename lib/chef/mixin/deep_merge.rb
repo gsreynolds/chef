@@ -1,7 +1,7 @@
 #
 # Author:: Adam Jacob (<adam@chef.io>)
 # Author:: Steve Midgley (http://www.misuse.org/science)
-# Copyright:: Copyright 2009-2016, Chef Software Inc.
+# Copyright:: Copyright 2009-2017, Chef Software Inc.
 # Copyright:: Copyright 2008-2016, Steve Midgley
 # License:: Apache License, Version 2.0
 #
@@ -112,12 +112,8 @@ class Chef
                 merge_with_value
               end
 
-            if merge_onto.respond_to?(:public_method_that_only_deep_merge_should_use)
-              # we can't call ImmutableMash#[]= because its immutable, but we need to mutate it to build it in-place
-              merge_onto.public_method_that_only_deep_merge_should_use(key, value)
-            else
-              merge_onto[key] = value
-            end
+            # internal_set bypasses converting keys, does convert values and allows writing to immutable mashes
+            merge_onto.internal_set(key, value)
           end
           merge_onto
 
@@ -127,7 +123,13 @@ class Chef
 
         # In all other cases, replace merge_onto with merge_with
         else
-          merge_with
+          if merge_with.kind_of?(Hash)
+            Chef::Node::ImmutableMash.new(merge_with)
+          elsif merge_with.kind_of?(Array)
+            Chef::Node::ImmutableArray.new(merge_with)
+          else
+            merge_with
+          end
         end
       end
 
